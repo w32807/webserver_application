@@ -10,6 +10,7 @@ import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.HttpRequestUtils;
+import util.IOUtils;
 
 public class RequestHandler extends Thread {
     private static final Logger log = LoggerFactory.getLogger(RequestHandler.class);
@@ -30,18 +31,28 @@ public class RequestHandler extends Thread {
 
             // 요청의 1번째 라인은 Http Request의 Requeset Line이다.
             // Http 메소드, uri, HTTP 버전을 포함한다.
-            String requestLine = br.readLine();
-            if(requestLine == null){
+            String line = br.readLine();
+            if(line == null){
                 return;
             }
 
-            log.debug("request line {}", requestLine);
-            String[] tokens = requestLine.split(" ");
+            log.debug("request line {}", line);
+            String[] tokens = line.split(" ");
             String urlWithQueryParam = tokens[1];
             // 회원가입
+
+            while (!"".equals(line)){
+                line = br.readLine();
+                if(line == null) break;
+                //log.debug("line {}", line);
+            }
+
             if(urlWithQueryParam.contains("/user/create")){
-                Map<String, String> map = HttpRequestUtils.parseQueryString(getParamString(requestLine));
+                String readData = IOUtils.readData(br, 66);
+                log.info("readData {}", readData);
+                Map<String, String> map = HttpRequestUtils.parseQueryString(readData);
                 User user = new User(map.get("userId"), map.get("password"), map.get("name"), map.get("email"));
+                log.info("user {}", user);
             }
 
             byte[] body = Files.readAllBytes(Paths.get("./webapp/" + urlWithQueryParam));  //한글 인코딩 문제 가능성!
