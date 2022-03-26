@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Locale;
 import java.util.Map;
 
 import model.User;
@@ -32,31 +33,39 @@ public class RequestHandler extends Thread {
             // 요청의 1번째 라인은 Http Request의 Requeset Line이다.
             // Http 메소드, uri, HTTP 버전을 포함한다.
             String line = br.readLine();
-            if(line == null){
-                return;
-            }
 
             log.debug("request line {}", line);
             String[] tokens = line.split(" ");
+            String httpMethod = tokens[0];
             String urlWithQueryParam = tokens[1];
-            // 회원가입
+            int contentLength = 0;
 
+            // bufferedReader를 1줄 씩 읽으며, 개행문자가 나오면 
+            // 1. Get Method일 때 - 헤더를 다 읽고 끝
+            // 2. Post Method일 때 - 헤더를 다 읽고 바디가 남음
             while (!"".equals(line)){
                 line = br.readLine();
                 if(line == null) break;
+                if(line.contains("Content-Length")){
+                    contentLength = Integer.parseInt(line.substring(line.indexOf(" ") + 1));
+                }
                 //log.debug("line {}", line);
             }
 
-            if(urlWithQueryParam.contains("/user/create")){
-                String readData = IOUtils.readData(br, 66);
+            DataOutputStream dos = new DataOutputStream(out);
+
+            // 회원가입
+            if(urlWithQueryParam.contains("/user/create") && "POST".equals(httpMethod)){
+                String readData = IOUtils.readData(br, contentLength);
                 log.info("readData {}", readData);
                 Map<String, String> map = HttpRequestUtils.parseQueryString(readData);
                 User user = new User(map.get("userId"), map.get("password"), map.get("name"), map.get("email"));
                 log.info("user {}", user);
+
+                response302Header(dos, contentLength, "index.html");
             }
 
             byte[] body = Files.readAllBytes(Paths.get("./webapp/" + urlWithQueryParam));  //한글 인코딩 문제 가능성!
-            DataOutputStream dos = new DataOutputStream(out);
             //byte[] body = "Hello World".getBytes();
             response200Header(dos, body.length);
             responseBody(dos, body);
@@ -70,6 +79,17 @@ public class RequestHandler extends Thread {
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
             dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.error(e.getMessage());
+        }
+    }
+
+    private void response302Header(DataOutputStream dos, int lengthOfBodyContent, String location) {
+        try {
+            dos.writeBytes("HTTP/1.1 302 Found \r\n");
+            dos.writeBytes("Location: ../" + location + "\r\n");
+            //dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.error(e.getMessage());
