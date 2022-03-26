@@ -4,9 +4,12 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Map;
 
+import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import util.HttpRequestUtils;
 
 public class RequestHandler extends Thread {
     private static final Logger log = LoggerFactory.getLogger(RequestHandler.class);
@@ -28,9 +31,20 @@ public class RequestHandler extends Thread {
             // 요청의 1번째 라인은 Http Request의 Requeset Line이다.
             // Http 메소드, uri, HTTP 버전을 포함한다.
             String requestLine = br.readLine();
+            if(requestLine == null){
+                return;
+            }
+
             log.debug("request line {}", requestLine);
             String[] tokens = requestLine.split(" ");
-            byte[] body = Files.readAllBytes(Paths.get("./webapp/" + tokens[1]));  //한글 인코딩 문제 가능성!
+            String urlWithQueryParam = tokens[1];
+            // 회원가입
+            if(urlWithQueryParam.contains("/user/create")){
+                Map<String, String> map = HttpRequestUtils.parseQueryString(getParamString(requestLine));
+                User user = new User(map.get("userId"), map.get("password"), map.get("name"), map.get("email"));
+            }
+
+            byte[] body = Files.readAllBytes(Paths.get("./webapp/" + urlWithQueryParam));  //한글 인코딩 문제 가능성!
             DataOutputStream dos = new DataOutputStream(out);
             //byte[] body = "Hello World".getBytes();
             response200Header(dos, body.length);
@@ -62,5 +76,9 @@ public class RequestHandler extends Thread {
 
     private boolean isHtml(String param){
         return param.contains(".html");
+    }
+
+    private String getParamString(String requestLine){
+        return requestLine.split(" ")[1].split("\\?")[1];
     }
 }
