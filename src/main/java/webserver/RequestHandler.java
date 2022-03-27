@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 import java.util.Locale;
 import java.util.Map;
 
+import db.DataBase;
 import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +40,7 @@ public class RequestHandler extends Thread {
             String httpMethod = tokens[0];
             String urlWithQueryParam = tokens[1];
             int contentLength = 0;
+            boolean isLogined = false;
 
             // bufferedReader를 1줄 씩 읽으며, 개행문자가 나오면 
             // 1. Get Method일 때 - 헤더를 다 읽고 끝
@@ -61,23 +63,45 @@ public class RequestHandler extends Thread {
                 Map<String, String> map = HttpRequestUtils.parseQueryString(readData);
                 User user = new User(map.get("userId"), map.get("password"), map.get("name"), map.get("email"));
                 log.info("user {}", user);
-
+                DataBase.addUser(user);
                 response302Header(dos, contentLength, "index.html");
+            }
+
+            // 로그인
+            if(urlWithQueryParam.contains("/user/login") && "POST".equals(httpMethod)){
+                String readData = IOUtils.readData(br, contentLength);
+                log.info("readData {}", readData);
+                Map<String, String> map = HttpRequestUtils.parseQueryString(readData);
+                String userId = map.get("userId");
+                User user = DataBase.findUserById(userId);
+                if(user != null){
+                    // 등록된 사용자가 있다면, 비밀번호 체크
+                    String password = map.get("password");
+                    if(password.equals(user.getPassword())){
+                        log.info("login success");
+                        isLogined = true;
+                    }else {
+                        log.info("login fail");
+                    }
+                }else {
+                    log.info("login fail");
+                }
             }
 
             byte[] body = Files.readAllBytes(Paths.get("./webapp/" + urlWithQueryParam));  //한글 인코딩 문제 가능성!
             //byte[] body = "Hello World".getBytes();
-            response200Header(dos, body.length);
+            response200Header(dos, body.length, isLogined);
             responseBody(dos, body);
         } catch (IOException e) {
             log.error(e.getMessage());
         }
     }
 
-    private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
+    private void response200Header(DataOutputStream dos, int lengthOfBodyContent, boolean isLogined) {
         try {
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
             dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
+            dos.writeBytes("Set-Cookie: logined" + isLogined);
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {

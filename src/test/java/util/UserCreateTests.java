@@ -1,5 +1,6 @@
 package util;
 
+import db.DataBase;
 import model.User;
 import org.junit.Test;
 import org.slf4j.Logger;
