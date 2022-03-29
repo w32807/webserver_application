@@ -10,13 +10,9 @@ import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 
-import static enums.HttpMethod.*;
-
 public class HttpRequest {
     private static final Logger log = LoggerFactory.getLogger(HttpRequest.class);
 
-    private String method;
-    private String path;
     private Map<String, String> headers = new HashMap<>();
     private Map<String, String> params = new HashMap<>();
     private RequestLine requestLine;
@@ -26,9 +22,7 @@ public class HttpRequest {
             BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
             String line = br.readLine(); // 첫번째 라인은 Request Line이 된다.
 
-            if(line == null){
-                return;
-            }
+            if(line == null) return;
 
             requestLine = new RequestLine(line);
 
@@ -43,7 +37,7 @@ public class HttpRequest {
                 String body = IOUtils.readData(br, Integer.parseInt(headers.get("Content-Length")));
                 params = HttpRequestUtils.parseQueryString(body);
             }else {
-                params = requestLine.getParams();
+                params = requestLine.getParameters();
             }
         } catch (IOException e) {
             e.printStackTrace();
